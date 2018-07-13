@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -37,7 +36,7 @@ func getAutoHomeBrand(brandUrl string, brand_name string) {
 	resp, err := http.Get(brandUrl)
 	defer resp.Body.Close()
 	if err != nil {
-		log.Println("goqueryGet http.Get:", err)
+		logger.Record("Error: goqueryGet http.Get:", err)
 		return
 	}
 
@@ -53,7 +52,7 @@ func getAutoHomeBrand(brandUrl string, brand_name string) {
 
 	u, err := url.Parse(brandUrl)
 	if err != nil {
-		log.Fatal("goqueryGet ParseUrl:", err)
+		logger.Record("Error: goqueryGet ParseUrl:", err)
 		return
 	}
 	schemes = u.Scheme
@@ -61,7 +60,7 @@ func getAutoHomeBrand(brandUrl string, brand_name string) {
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		log.Fatal("goqueryGet Err:", err)
+		logger.Record("Error: goqueryGet Err:", err)
 		return
 	}
 
@@ -94,7 +93,7 @@ func getAutoHomeBrand(brandUrl string, brand_name string) {
 		}
 		mName := dt.Find("a").Text()
 		if mName != "" {
-			mName = charToUtf(mName, charset)
+			mName = ChineseToUtf(mName, charset)
 			mName = strings.TrimSpace(mName)
 			manuf.Name = mName
 		}
@@ -114,7 +113,7 @@ func getAutoHomeBrands(sUrl string) {
 	resp, err := http.Get(sUrl)
 	defer resp.Body.Close()
 	if err != nil {
-		log.Println("goqueryGet http.Get:", err)
+		logger.Record("Error: goqueryGet http.Get:", err)
 		return
 	}
 
@@ -130,7 +129,7 @@ func getAutoHomeBrands(sUrl string) {
 
 	u, err := url.Parse(sUrl)
 	if err != nil {
-		log.Fatal("goqueryGet ParseUrl:", err)
+		logger.Record("Error: goqueryGet ParseUrl:", err)
 		return
 	}
 	schemes = u.Scheme
@@ -138,14 +137,14 @@ func getAutoHomeBrands(sUrl string) {
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		log.Fatal("goqueryGet Err:", err)
+		logger.Record("Error: goqueryGet Err:", err)
 		return
 	}
 
 	contentNode := doc.Find(".cartree-letter")
 	contentNode.Each(func(i int, s *goquery.Selection) {
 		l := s.Text()
-		l = strings.TrimSpace(charToUtf(l, charset))
+		l = strings.TrimSpace(ChineseToUtf(l, charset))
 
 		lBrand := s.Next().Find("li")
 		lBrand.Each(func(j int, li *goquery.Selection) {
@@ -169,7 +168,7 @@ func getAutoHomeBrands(sUrl string) {
 						pair := strings.SplitN(brand_html, "<em>", 2)
 						brand_name = pair[0]
 
-						brand_name = strings.TrimSpace(charToUtf(brand_name, charset))
+						brand_name = strings.TrimSpace(ChineseToUtf(brand_name, charset))
 						brands[brand_name] = &Brand{Name: brand_name, Url: link, Cap: l}
 
 						em := pair[1]

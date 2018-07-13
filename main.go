@@ -94,14 +94,6 @@ func exitWithError(err error) {
 	os.Exit(1)
 }
 
-func checkFileExist(filename string) bool {
-	var exist bool = true
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		exist = false
-	}
-	return exist
-}
-
 func signalHandle() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGUSR2)

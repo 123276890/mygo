@@ -48,13 +48,13 @@ func (l *logManager) Record(v ...interface{}) {
 	l.Logger.Println(v...)
 }
 
-func charToUtf(src string, srcCode string) string {
+func ChineseToUtf(src string, srcCode string) string {
 	if srcCode == "gb2312" {
 		srcCode = "gbk"
 	}
 	srcCoder := mahonia.NewDecoder(srcCode)
 	if srcCoder == nil {
-		log.Fatal("Could not create Decoder for", srcCode)
+		logger.Record("Error: Could not create Decoder for", srcCode)
 		return ""
 	}
 	srcResult := srcCoder.ConvertString(src)
@@ -62,4 +62,12 @@ func charToUtf(src string, srcCode string) string {
 	_, data, _ := targetCoder.Translate([]byte(srcResult), true)
 	result := string(data)
 	return result
+}
+
+func checkFileExist(filename string) bool {
+	var exist bool = true
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		exist = false
+	}
+	return exist
 }
