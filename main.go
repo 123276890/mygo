@@ -1,23 +1,24 @@
 package main
 
 import (
-	"flag"
-	"runtime"
-	"os"
 	"context"
-	"fmt"
-	"strconv"
-	"log"
-	"os/signal"
-	"syscall"
-	"strings"
 	"errors"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
 )
 
 var (
 	fd       *os.File
 	pid_file string
+	config   = make(map[string]string)
 	rootCtx  context.Context
 	cancel   context.CancelFunc
 	flagS    = flag.String("s", "", "send a 'stop' or 'reload' message to the Main Progress")
@@ -68,6 +69,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	loadSettings("")
 	pid := os.Getpid()
 	fd.Write([]byte(strconv.Itoa(pid)))
 
@@ -103,6 +105,7 @@ func checkFileExist(filename string) bool {
 func signalHandle() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGUSR2)
+
 	for {
 		sig := <-ch
 
@@ -112,14 +115,14 @@ func signalHandle() {
 			log.Println("received signal Exit")
 			signal.Stop(ch)
 			fd.Close()
-			cancel() // end mainProgress
+			//cancel() // end mainProgress
 			exitUnlockPid()
 			log.Println("bye bye")
 			return
 		case syscall.SIGHUP, syscall.SIGUSR2:
 			// graceful startProgress
 			log.Println("received signal restart")
-			cancel() // end mainProgress
+			//cancel() // end mainProgress
 
 			log.Println("all workers canceled")
 		}
@@ -127,7 +130,7 @@ func signalHandle() {
 }
 
 func loadSettings(config_file string) {
-
+	config["logfile"] = "./log.txt"
 }
 
 func getPidFromFile() int {

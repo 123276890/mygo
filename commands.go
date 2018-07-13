@@ -2,33 +2,36 @@ package main
 
 import (
 	"bufio"
-	"fmt"
-	"bytes"
-	"strings"
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"syscall"
 )
 
 func consoleReceiveCommand() {
+	showHelp()
 	console := bufio.NewReader(os.Stdin)
 	fmt.Println("Input a Command:")
 	for {
 		fmt.Print(">>>")
-		input, _, err := console.ReadLine()
+		input, err := console.ReadString('\n')
 		if err != nil {
 			fmt.Println(err)
-			break
+			return
 		}
 
-		input = bytes.TrimSuffix(input, []byte("\n"))
-		command := strings.ToLower(string(input))
+		command := strings.TrimSuffix(string(input), "\n")
+		command = strings.ToLower(command)
+		//fmt.Println("command:",command)
 		switch command {
+		case "get brands":
+			JobGetAutoHomeBrands()
 		case "exit":
 			pid := getPidFromFile()
 			if pid > 0 {
 				syscall.Kill(pid, syscall.SIGQUIT)
-				os.Exit(0)
+				exitUnlockPid()
 			}
 			return
 		case "help":
@@ -39,10 +42,13 @@ func consoleReceiveCommand() {
 }
 
 func showHelp() {
-	help := "Usage:" +
-		"start:" +
-		"stop:" +
-		"exit:"
+	help := "Usage:" + "\n" +
+		"get brands: " + "\n" +
+		"			抓取汽车之家品牌数据" + "\n" +
+		"help: \n" +
+		"			查看帮助" + "\n" +
+		"exit: \n" +
+		"			退出" + "\n"
 	fmt.Println(help)
 }
 
