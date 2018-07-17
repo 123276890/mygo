@@ -13,17 +13,61 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/astaxie/beego/orm"
 )
 
 var (
 	fd       *os.File
 	pid_file string
-	config = make(map[string]map[string]string)
+
+	config = loadSettings()
+	SHOPNC_ROOT = config["crawler"]["shopnc_root"]
+
 	rootCtx  context.Context
 	cancel   context.CancelFunc
 	flagS    = flag.String("s", "", "send a 'stop' or 'reload' message to the Main Progress")
 	flagC    = flag.String("c", "./config.ini", "use another setting file path, default: ./config.ini")
 )
+
+func init() {
+	db_type, ok := config["db"]["db_type"]
+	if !ok {
+		exitWithError(errors.New("can not get db_type config"))
+	}
+
+	db_host, ok := config["db"]["db_host"]
+	if !ok {
+		exitWithError(errors.New("can not get db_host config"))
+	}
+
+	db_port, ok := config["db"]["db_port"]
+	if !ok {
+		exitWithError(errors.New("can not get db_port config"))
+	}
+
+	db_user, ok := config["db"]["db_user"]
+	if !ok {
+		exitWithError(errors.New("can not get db_user config"))
+	}
+
+	db_passwd, ok := config["db"]["db_passwd"]
+	if !ok {
+		exitWithError(errors.New("can not get db_passwd config"))
+	}
+
+	db_name, ok := config["db"]["db_name"]
+	if !ok {
+		exitWithError(errors.New("can not get db_name config"))
+	}
+
+	prefix := "lrlz_"
+	maxIdle := 30
+	maxConn := 30
+	dsn := db_user + ":" + db_passwd + "@tcp(" + db_host + ":" + db_port + ")/" + db_name + "?charset=utf8"
+	orm.RegisterDataBase("default", db_type, dsn, maxIdle, maxConn)
+	orm.RegisterModelWithPrefix(prefix, new(Brand)) //TODO
+}
 
 func main() {
 	var err error
@@ -69,7 +113,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	loadSettings("")
 	pid := os.Getpid()
 	fd.Write([]byte(strconv.Itoa(pid)))
 
@@ -87,11 +130,6 @@ func exitUnlockPid() {
 		fmt.Println("delete pid success")
 	}
 	os.Exit(0)
-}
-
-func exitWithError(err error) {
-	log.Println(err)
-	os.Exit(1)
 }
 
 func signalHandle() {
@@ -119,10 +157,6 @@ func signalHandle() {
 			log.Println("all workers canceled")
 		}
 	}
-}
-
-func loadSettings(config_file string) {
-	config["logfile"] = "./log.txt"
 }
 
 func getPidFromFile() int {

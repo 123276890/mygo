@@ -7,6 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"bytes"
+	"strings"
+	"bufio"
+	"io"
+	"errors"
 )
 
 type buffer []byte
@@ -72,6 +77,65 @@ func checkFileExist(filename string) bool {
 		exist = false
 	}
 	return exist
+}
+
+func exitWithError(err error) {
+	logger.Record("Program fatal on Exit:",err)
+	os.Exit(1)
+}
+
+func loadSettings() (settings map[string]map[string]string) {
+	var configFile = "./config.ini"
+	fmt.Println("start loadsettings")
+	settings = make(map[string]map[string]string)
+	if checkFileExist(configFile) == false {
+		err := errors.New("config.ini file not found under current path")
+		exitWithError(err)
+	}
+
+	file, err := os.Open(configFile)
+	if err != nil {
+		exitWithError(err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	section := "default"
+	for {
+		line, _, err := reader.ReadLine()
+		//文件末尾
+		if err == io.EOF {
+			break
+		}
+
+		//空行跳过
+		if bytes.Equal(line, []byte("")) {
+			continue
+		}
+		line = bytes.TrimSpace(line)
+		//跳过注释行
+		if bytes.HasPrefix(line, []byte("#")) {
+			//fmt.Println("line",i,"has #")
+			continue
+		}
+
+		if bytes.HasPrefix(line, []byte("[")) && bytes.HasSuffix(line, []byte("]")) {
+			section = string(line[1:len(line) - 1])
+			section = strings.ToLower(section)
+			settings[section] = make(map[string]string)
+		} else {
+			str := string(line)
+			if strings.Contains(str, "=") {
+				pair := strings.SplitN(str, "=",2)
+				key := pair[0]
+				val := pair[1]
+				if _, isset := settings[section]; isset {
+					settings[section][key] = val
+				}
+			}
+		}
+	}
+	return settings
 }
 
 func NewBuffer() *buffer {

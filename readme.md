@@ -8,7 +8,11 @@
 
 `go get -u github.com/kardianos/govendor`
 
+`go get github.com/axgle/mahonia`
 
+`go get github.com/PuerkitoBio/goquery`
+
+`go get github.com/astaxie/beego/orm`
 
 **Setup**
 
