@@ -9,6 +9,8 @@ import (
 	"sync"
 )
 
+type buffer []byte
+
 type logManager struct{ *log.Logger }
 
 func initLogManager(filename string) *logManager {
@@ -37,8 +39,8 @@ func initLogManager(filename string) *logManager {
 			log.Fatalln("Failed:", err)
 			return
 		}
-		l = &logManager{log.New(logFileWriter, "[DEBUG]", log.LstdFlags)}
-		l.Record("\n")
+		l = &logManager{log.New(logFileWriter, "", log.LstdFlags)}
+		l.Record("Program Start\n")
 	})
 	return l
 }
@@ -70,4 +72,13 @@ func checkFileExist(filename string) bool {
 		exist = false
 	}
 	return exist
+}
+
+func NewBuffer() *buffer {
+	return &buffer{}
+}
+
+func (b *buffer) Write(p []byte) (int, error) {
+	*b = append(*b, p...)
+	return len(*b), nil
 }

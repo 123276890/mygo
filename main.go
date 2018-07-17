@@ -18,7 +18,7 @@ import (
 var (
 	fd       *os.File
 	pid_file string
-	config   = make(map[string]string)
+	config = make(map[string]map[string]string)
 	rootCtx  context.Context
 	cancel   context.CancelFunc
 	flagS    = flag.String("s", "", "send a 'stop' or 'reload' message to the Main Progress")

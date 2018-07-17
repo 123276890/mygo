@@ -6,6 +6,10 @@
 
 **Dependencies**
 
+`go get -u github.com/kardianos/govendor`
+
+
+
 **Setup**
 
 `cd gocrawler`
