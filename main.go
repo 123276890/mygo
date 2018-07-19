@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/astaxie/beego/orm"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	pid_file string
 
 	config = loadSettings()
+	PinyinMap = loadPinyinMap()
 	SHOPNC_ROOT = config["crawler"]["shopnc_root"]
 
 	rootCtx  context.Context
@@ -66,7 +68,8 @@ func init() {
 	maxConn := 30
 	dsn := db_user + ":" + db_passwd + "@tcp(" + db_host + ":" + db_port + ")/" + db_name + "?charset=utf8"
 	orm.RegisterDataBase("default", db_type, dsn, maxIdle, maxConn)
-	orm.RegisterModelWithPrefix(prefix, new(Brand)) //TODO
+	orm.RegisterModelWithPrefix(prefix, new(Brand), new(CarSeries)) //TODO 注册model与数据表关联
+	orm.Debug = true
 }
 
 func main() {

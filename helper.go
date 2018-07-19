@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/axgle/mahonia"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,6 +11,12 @@ import (
 	"bufio"
 	"io"
 	"errors"
+	//crand "crypto/rand"
+	"math/rand"
+	"strconv"
+	"time"
+
+	"github.com/axgle/mahonia"
 )
 
 type buffer []byte
@@ -145,4 +150,52 @@ func NewBuffer() *buffer {
 func (b *buffer) Write(p []byte) (int, error) {
 	*b = append(*b, p...)
 	return len(*b), nil
+}
+
+func loadPinyinMap() (map[string]string) {
+	pinyins := make(map[string]string)
+	f, err := os.Open("pinyin.txt")
+	if err != nil {
+		fmt.Println(err.Error())
+		return pinyins
+	}
+	defer f.Close()
+
+	buf := bufio.NewReader(f)
+	for {
+		line, err := buf.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println(err.Error())
+			break
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		arr := strings.Split(line, " ")
+		key := arr[0]
+		pinyin := arr[1]
+		pinyins[key] = pinyin
+	}
+	return pinyins
+}
+
+func reNameSameFileName(filename string, path string) (string){
+	var f string
+	rand.Seed(time.Now().UnixNano())
+	if strings.Contains(filename, ".") {
+		pos := strings.LastIndex(filename, ".")
+		f = filename[:pos] + strconv.Itoa(rand.Intn(10)) + filename[pos:]
+	} else {
+		f = filename + strconv.Itoa(rand.Intn(10))
+	}
+
+	if checkFileExist(filepath.Join(path,f)) {
+		return reNameSameFileName(f, path)
+	} else {
+		return f
+	}
 }

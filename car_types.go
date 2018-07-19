@@ -16,6 +16,7 @@ type Car struct {
 }
 
 type Series struct {
+	AutoHomeSid	int					`汽车之家车系ID`
 	Name		string				`车系名称`
 	Status 		string				`停产停售状态`
 	Url    		string				`车系主页`
@@ -94,6 +95,20 @@ func (s *Series) SetUrl(sUrl string) {
 	s.Url = sUrl
 }
 
+func (b AutoHomeBrand) getSeries() ([]*Series) {
+	if len(b.Manufactures) <= 0 {
+
+	}
+
+	var s []*Series
+	for _, m := range b.Manufactures {
+		for _, v := range m.Series {
+			s = append(s, v)
+		}
+	}
+	return s
+}
+
 func (b AutoHomeBrand) String() string {
 	baseStr := "品牌: " + b.Name + "\n" +
 		"链接: " + b.Url + "\n" +
@@ -109,7 +124,7 @@ func (b AutoHomeBrand) String() string {
 		str = "	{厂商:" + m.Name + ", 链接:" + m.Url + ", 车系:[\n"
 		buf.Write([]byte(str))
 		for _, s := range m.Series {
-			str = "		{S:" + s.Name + ", 状态:" + s.Status + ", 链接:" + s.Url + ",\n"
+			str = "		{S:" + s.Name + ",SID:" + strconv.Itoa(s.AutoHomeSid) + ", 状态:" + s.Status + ", 链接:" + s.Url + ",\n"
 			str += "		参数:" + s.Settings + "},\n"
 			buf.Write([]byte(str))
 			for _, c := range s.Cars {

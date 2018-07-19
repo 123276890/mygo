@@ -8,11 +8,13 @@
 
 `go get -u github.com/kardianos/govendor`
 
-`go get github.com/axgle/mahonia`
+All 3rd party dependencies under the vendor folder
 
-`go get github.com/PuerkitoBio/goquery`
+`github.com/axgle/mahonia`
 
-`go get github.com/astaxie/beego/orm`
+`github.com/PuerkitoBio/goquery`
+
+`github.com/astaxie/beego/orm`
 
 **Setup**
 

@@ -9,7 +9,8 @@ import (
 	"time"
 	"path/filepath"
 	"os"
-	"io"
+	"io/ioutil"
+	"errors"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/astaxie/beego/orm"
@@ -45,38 +46,61 @@ func JobGetAutoHomeBrands() {
 			if strings.Contains(excepts, b.Name) {
 				continue
 			}
-			brand := Brand{Brand_name:b.Name}
-			err = o.Read(&brand,"brand_name")
+
+			getAutoHomeBrand(b.Url, b.Name)
+			//time.Sleep(time.Millisecond * 1000)
+
+			// update 品牌
+			brand_query := &Brand{Brand_name:b.Name}
+			err = o.Read(brand_query,"brand_name")
 
 			if err != nil {
 				// 数据库未找到该品牌
-				logger.Record("No such brand in DB:",b.Name)
+				//logger.Record("No such brand in DB:",b.Name)
 				//下载并保存品牌logo
-				savepath, err := downloadBrandLogo(b)
+				logo_file_path, err := downloadBrandLogo(b)
 				if err != nil {
 					logger.Record("Error when downloading",b.Name,"logo: ",err)
 				}
-				brand.Brand_initial = b.Cap
-				brand.Brand_logo = savepath
+				brand_query.Brand_initial = b.Cap
+				brand_query.Brand_logo = logo_file_path
 
-				brand_id, err := o.Insert(brand)
+				insert_id, err := o.Insert(brand_query)
 				if err != nil {
-					logger.Record("Error when insert into DB:",err)
+					logger.Record("Error when insert a new Brand:",err)
 				}
-				logger.Record("New brand insert into DB:",brand_id)
-
+				brand_query.Brand_id = int(insert_id)
+				logger.Record("New brand insert into DB Success:",insert_id)
 			} else {
-				logger.Record(brand.Brand_name,"found in DB",brand)
+				logger.Record(brand_query.Brand_name,"found in DB",brand_query)
 			}
 
-			//getAutoHomeBrand(v.Url, v.Name)
-			//time.Sleep(time.Millisecond * 1000)
+			// update 车系
+			ss := b.getSeries()
+			for _, s := range ss {
+				series_query := &CarSeries{Series_name:s.Name,Brand_id:brand_query.Brand_id}
+				err = o.Read(series_query, "series_name","brand_id")
+
+				if err != nil {
+					// 数据库未查到该车系
+					series_query.Series_id = s.AutoHomeSid
+					sid, err := o.Insert(series_query)
+					if err != nil {
+						logger.Record("Error when insert a new CarSeries:", err)
+					} else {
+						logger.Record("New CarSeries insert into DB Success:",sid)
+					}
+				}
+			}
 		}
 	}
 }
 
 func downloadBrandLogo(b *AutoHomeBrand) (string, error) {
-	logo_save_path := "/shop/brand/logo"
+	// 数据库记录的logo路径
+	return_path := "/shop/brand/logo"
+	// logo图片保存的真实路径 SHOPNC_ROOT /data/upload/shop/brand/logo
+	logo_save_path := "/data/upload/shop/brand/logo"
 	logo_save_path = filepath.Join(SHOPNC_ROOT,logo_save_path)
 
 	response, err := http.Get(b.Img)
@@ -88,15 +112,50 @@ func downloadBrandLogo(b *AutoHomeBrand) (string, error) {
 	if !checkFileExist(logo_save_path) {
 		os.Mkdir(logo_save_path, 0755)
 	}
-	//TODO 将品牌中文转换为英文缩写
-	filename := ""
-	dst, err := os.Create(logo_save_path + filename)
+	// 将品牌中文转换为英文缩写
+	pinyin := ""
+	words_rune := []rune(b.Name)
+	for _, v := range words_rune {
+		s := string(v)
+		p, ok := PinyinMap[s]
+		if ok {
+			pinyin += string(p[0])
+		}
+	}
+	if pinyin == "" {
+		return "", errors.New("Error: Can not generate logo image's file name!")
+	}
+
+	var extension string
+	src, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}
-	io.Copy(dst, response.Body)
+	filetype := http.DetectContentType(src)
+	switch filetype {
+	case "image/jpeg": extension = ".jpg"
+	case "image/png": extension = ".png"
+	case "image/gif": extension = ".gif"
+	default:
+		return "", errors.New("Error: Not a image file")
+	}
 
-	return logo_save_path, nil
+	filename := pinyin + extension
+
+	// 如果已存在同名文件
+	if checkFileExist(filename) {
+		filename = reNameSameFileName(filename, logo_save_path)
+	}
+
+	dst, err := os.Create( filepath.Join(logo_save_path,filename) )
+	if err != nil {
+		return "", err
+	}
+	dst.Write(src)
+	return_path = filepath.Join(return_path,filename)
+	logger.Record("Download and save logo file success:", filepath.Join(logo_save_path,filename))
+
+	return return_path, nil
 }
 
 func fetchSeriesInfo(sUrl string, series_name string, brand_name string) (map[string]interface{}, bool) {
@@ -296,6 +355,8 @@ func getAutoHomeBrand(brandUrl string, brand_name string) {
 					if strings.Contains(series_link, "#") {
 						series_link = strings.SplitN(series_link, "#", 2)[0]
 					}
+
+					//TODO 抓取车系ID
 
 					series := NewSeries(s_name, s_status, series_link)
 					// 拉取 车系配置详情链接
