@@ -10,6 +10,8 @@
 
 All 3rd party dependencies under the vendor folder
 
+`github.com/tidwall/gjson`
+
 `github.com/axgle/mahonia`
 
 `github.com/PuerkitoBio/goquery`
