@@ -6,7 +6,16 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"regexp"
 )
+
+func Test_Regexp(t *testing.T) {
+	pat := `<[^>]+>`
+	str := "三<span class='hs_kw6_configEQ'></span>10<span class='hs_kw1_configEQ'></span>公里"
+	reg := regexp.MustCompile(pat)
+	found := reg.Split(str, -1)
+	t.Log(found)
+}
 
 func Test_PinYinSuoXie(t *testing.T) {
 	//str := "Icona"
@@ -77,10 +86,33 @@ func Test_ConvertPinyinFile(t *testing.T) {
 	t.Log("output success")
 }
 
+func Test_FetchCarType(t *testing.T) {
+	// 威途X35 2017款 RQ5026XXYEVH0 45kWh		ID:1005463		https://www.autohome.com.cn/spec/1005463
+	// 帕萨特 2017款 280TSI DSG尊雅版		ID:29314	https://www.autohome.com.cn/spec/29314/
+	var (
+		car_id int
+		car_name string
+		car_url string
+	)
+	//car_id, car_name, car_url = 1005463, "威途X35 2017款 RQ5026XXYEVH0 45kWh", "https://www.autohome.com.cn/spec/1005463"
+	car_id, car_name, car_url = 29314, "帕萨特 2017款 280TSI DSG尊雅版", "https://www.autohome.com.cn/spec/29314/"
+	car := NewCar(car_id,car_name,car_url)
+	car.SetPrice("18.99万")
+	info, err := fetchCarInfo(car)
+	if err != nil {
+
+	}
+	t.Log(info)
+}
+
 func Test_getAutoHomeBrand(t *testing.T) {
-	/*sUrl := ""
-	brand_name := ""
-	ret := getAutoHomeBrand(sUrl, brand_name)*/
+	// 大众: 1	欧宝: 59
+	sUrl := "https://car.autohome.com.cn/price/brand-59.html"
+	brand_name := "欧宝"
+	brands["欧宝"] = &AutoHomeBrand{Name:brand_name}
+
+	getAutoHomeBrand(sUrl, brand_name)
+	t.Log(brands["欧宝"])
 }
 
 func Test_FetchSeriesInfo(t *testing.T) {

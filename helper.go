@@ -19,9 +19,10 @@ import (
 	"github.com/axgle/mahonia"
 )
 
-type buffer []byte
-
-type logManager struct{ *log.Logger }
+type logManager struct{
+	*log.Logger
+	O			*os.File
+}
 
 func initLogManager(filename string) *logManager {
 	var once sync.Once
@@ -49,8 +50,9 @@ func initLogManager(filename string) *logManager {
 			log.Fatalln("Failed:", err)
 			return
 		}
-		l = &logManager{log.New(logFileWriter, "", log.LstdFlags)}
-		l.Record("Program Start\n")
+		l = &logManager{log.New(logFileWriter, "", log.LstdFlags),logFileWriter}
+		l.Println("\n")
+		l.Record("Program Start...")
 	})
 	return l
 }
@@ -89,10 +91,10 @@ func exitWithError(err error) {
 	os.Exit(1)
 }
 
-func loadSettings() (settings map[string]map[string]string) {
+func loadSettings() (map[string]map[string]string) {
 	var configFile = "./config.ini"
-	fmt.Println("start loadsettings")
-	settings = make(map[string]map[string]string)
+	fmt.Println("load settings...")
+	settings := make(map[string]map[string]string)
 	if checkFileExist(configFile) == false {
 		err := errors.New("config.ini file not found under current path")
 		exitWithError(err)
@@ -125,15 +127,15 @@ func loadSettings() (settings map[string]map[string]string) {
 		}
 
 		if bytes.HasPrefix(line, []byte("[")) && bytes.HasSuffix(line, []byte("]")) {
-			section = string(line[1:len(line) - 1])
+			section = strings.TrimSpace(string(line[1:len(line) - 1]))
 			section = strings.ToLower(section)
 			settings[section] = make(map[string]string)
 		} else {
 			str := string(line)
 			if strings.Contains(str, "=") {
 				pair := strings.SplitN(str, "=",2)
-				key := pair[0]
-				val := pair[1]
+				key := strings.TrimSpace(pair[0])
+				val := strings.TrimSpace(pair[1])
 				if _, isset := settings[section]; isset {
 					settings[section][key] = val
 				}
@@ -142,6 +144,8 @@ func loadSettings() (settings map[string]map[string]string) {
 	}
 	return settings
 }
+
+type buffer []byte
 
 func NewBuffer() *buffer {
 	return &buffer{}
@@ -154,12 +158,47 @@ func (b *buffer) Write(p []byte) (int, error) {
 
 func loadPinyinMap() (map[string]string) {
 	pinyins := make(map[string]string)
+	repeats := map[string]string{}
+	var (
+		arr []string
+		key string
+		pinyin string
+	)
+
 	f, err := os.Open("pinyin.txt")
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Record(err)
 		return pinyins
 	}
 	defer f.Close()
+
+	f_repeat, err := os.Open("repeats.txt")
+	if err != nil {
+		logger.Record(err)
+		return pinyins
+	}
+	defer f_repeat.Close()
+
+	r_repeat := bufio.NewReader(f_repeat)
+	for {
+		l, err := r_repeat.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			break
+		}
+
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		arr = strings.Split(l, " ")
+		key = arr[0]
+		pinyin = arr[1]
+		repeats[key] = pinyin
+	}
+	arr = nil
 
 	buf := bufio.NewReader(f)
 	for {
@@ -168,17 +207,22 @@ func loadPinyinMap() (map[string]string) {
 			if err == io.EOF {
 				break
 			}
-			fmt.Println(err.Error())
+			logger.Record(err)
 			break
 		}
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		arr := strings.Split(line, " ")
-		key := arr[0]
-		pinyin := arr[1]
-		pinyins[key] = pinyin
+		arr = strings.Split(line, " ")
+		key = arr[0]
+		pinyin = arr[1]
+
+		if v, isset := repeats[key]; isset {
+			pinyins[key] = v
+		} else {
+			pinyins[key] = pinyin
+		}
 	}
 	return pinyins
 }

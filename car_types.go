@@ -12,7 +12,9 @@ const (
 type Car struct {
 	Aid			int					`汽车之家 ID`
 	Name		string				`车型名称`
-	Url			string				`车型配置参数主页`
+	Url			string				`车型主页`
+	Settings	string
+	Price		string
 }
 
 type Series struct {
@@ -21,6 +23,7 @@ type Series struct {
 	Status 		string				`停产停售状态`
 	Url    		string				`车系主页`
 	Settings	string				`车系配置参数主页`
+	*Manufacture
 	Cars  		map[string]*Car		`车型`
 }
 
@@ -41,6 +44,24 @@ type AutoHomeBrand struct {
 
 type AutoHomeBrands map[string]*AutoHomeBrand
 
+func NewAutoHomeBrand(brand_name, brand_homepage, brand_capital string) *AutoHomeBrand {
+	return &AutoHomeBrand{Name:brand_name,Url:brand_homepage,Cap:brand_capital}
+}
+
+func NewManufacture() *Manufacture {
+	return &Manufacture{}
+}
+
+func NewSeries(sid int, series_name, series_status, s_url string) *Series {
+	return &Series{AutoHomeSid:sid, Name:series_name, Status:series_status, Url:s_url}
+}
+
+func NewCar(aid int, car_name, config_url string) (*Car) {
+	c := &Car{Aid:aid, Name:car_name, Url:config_url}
+	c.Settings = "https://car.autohome.com.cn/config/spec/" + strconv.Itoa(c.Aid) + ".html"
+	return c
+}
+
 func (b *AutoHomeBrands) IsEmpty() bool {
 	if len(*b) > 0 {
 		return false
@@ -50,16 +71,6 @@ func (b *AutoHomeBrands) IsEmpty() bool {
 
 func (b *AutoHomeBrands) Count() int {
 	return len(*b)
-}
-
-func NewAutoHomeBrand(brand_name, brand_homepage, brand_capital string) *AutoHomeBrand {
-	b := &AutoHomeBrand{Name:brand_name,Url:brand_homepage,Cap:brand_capital}
-	return b
-}
-
-func NewManufacture() *Manufacture {
-	m := &Manufacture{}
-	return m
 }
 
 func (m *Manufacture) SetName(mName string) {
@@ -72,11 +83,6 @@ func (m *Manufacture) SetUrl(sUrl string) {
 
 func (m *Manufacture) SetSeries(ss map[string]*Series) {
 	m.Series = ss
-}
-
-func NewSeries(series_name, series_status, s_url string) *Series {
-	s := &Series{Name:series_name, Status:series_status, Url:s_url}
-	return s
 }
 
 func (s *Series) SetSettings(settings_url string) {
@@ -93,6 +99,10 @@ func (s *Series) SetName(sName string) {
 
 func (s *Series) SetUrl(sUrl string) {
 	s.Url = sUrl
+}
+
+func (c *Car) SetPrice(price string) {
+	c.Price = price
 }
 
 func (b AutoHomeBrand) getSeries() ([]*Series) {
@@ -128,7 +138,9 @@ func (b AutoHomeBrand) String() string {
 			str += "		参数:" + s.Settings + "},\n"
 			buf.Write([]byte(str))
 			for _, c := range s.Cars {
-				str := "		AutoHomeId:" + strconv.Itoa(c.Aid) + ", Car Name:" + c.Name + "\n"
+				str := "		AutoHomeId:" + strconv.Itoa(c.Aid) + ", Car Name:" + c.Name + ",\n"
+				buf.Write([]byte(str))
+				str = "			Config:" + c.Settings + ",\n"
 				buf.Write([]byte(str))
 			}
 		}

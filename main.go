@@ -68,8 +68,9 @@ func init() {
 	maxConn := 30
 	dsn := db_user + ":" + db_passwd + "@tcp(" + db_host + ":" + db_port + ")/" + db_name + "?charset=utf8"
 	orm.RegisterDataBase("default", db_type, dsn, maxIdle, maxConn)
-	orm.RegisterModelWithPrefix(prefix, new(Brand), new(CarSeries)) //TODO 注册model与数据表关联
+	orm.RegisterModelWithPrefix(prefix, new(Brand), new(CarSeries), new(CarCrawl)) //TODO 注册model与数据表关联
 	orm.Debug = true
+	orm.DebugLog = orm.NewLog(logger.O)
 }
 
 func main() {
