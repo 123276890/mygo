@@ -246,7 +246,7 @@ func fetchCarInfo(c *Car) (map[string]map[string]string, error) {
 		return info, errors.New("Error when try to find inner color: position end is out of str length")
 	}
 	str_base = str_base[13:pos_end - 1]
-	fmt.Println(str_base)
+	//fmt.Println(str_base)
 
 	// 选项配置参数组
 	pos_start = strings.Index(html, "var option =")
@@ -259,7 +259,7 @@ func fetchCarInfo(c *Car) (map[string]map[string]string, error) {
 		return info, errors.New("Error when try to find inner color: position end is out of str length")
 	}
 	str_option = str_option[13:pos_end - 1]
-	fmt.Println(str_option)
+	//fmt.Println(str_option)
 
 	// 外观颜色json
 	pos_start = strings.Index(html, "var color =")
@@ -272,7 +272,7 @@ func fetchCarInfo(c *Car) (map[string]map[string]string, error) {
 		return info, errors.New("Error when try to find inner color: position end is out of str length")
 	}
 	str_color = str_color[12:pos_end - 1]
-	fmt.Println(str_color)
+	//fmt.Println(str_color)
 
 	// 内饰颜色json
 	pos_start = strings.Index(html, "var innerColor =")
@@ -285,7 +285,7 @@ func fetchCarInfo(c *Car) (map[string]map[string]string, error) {
 		return info, errors.New("Error when try to find inner color: position end is out of str length")
 	}
 	str_inner = str_inner[16:pos_end - 1]
-	fmt.Println(str_inner)
+	//fmt.Println(str_inner)
 
 	result := gjson.Get(str_base, "result.paramtypeitems")
 
