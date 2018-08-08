@@ -9,22 +9,26 @@ const (
 	DS = string(filepath.Separator)
 )
 
-type Car struct {
+/*type Car struct {
 	Aid			int					`汽车之家 ID`
 	Name		string				`车型名称`
-	Url			string				`车型主页`
-	Settings	string
+	homeUrl			string				`车型主页`
+	Series_id			int
+	configUrl	string
 	Price		string
-}
+	Quality_guarantee	string
+	brand_id	int
+}*/
 
 type Series struct {
-	AutoHomeSid	int					`汽车之家车系ID`
-	Name		string				`车系名称`
-	Status 		string				`停产停售状态`
-	Url    		string				`车系主页`
-	Settings	string				`车系配置参数主页`
+	Sid        int               `汽车之家车系ID`
+	Name       string            `车系名称`
+	status     string            `停产停售状态`
+	homeUrl    string            `车系主页`
+	configUrl  string            `车系配置参数主页`
+	*AutoHomeBrand
 	*Manufacture
-	Cars  		map[string]*Car		`车型`
+	CarCrawls  map[int]*CarCrawl `车型`
 }
 
 type Manufacture struct {
@@ -34,12 +38,12 @@ type Manufacture struct {
 }
 
 type AutoHomeBrand struct {
-	Name         string						`品牌名称`
-	Url          string						`品牌主页`
-	Img          string						`品牌标志`
-	Cap          string						`品牌首字母`
-	Nums         int						`车型总数（包含已停售已停产）`
-	Manufactures map[string]*Manufacture	`旗下厂商`
+	Name         string                  `品牌名称`
+	Url          string                  `品牌主页`
+	Img          string                  `品牌标志`
+	Cap          string                  `品牌首字母`
+	nums         int                     `车型总数（包含已停售已停产）`
+	Manufactures map[string]*Manufacture `旗下厂商`
 }
 
 type AutoHomeBrands map[string]*AutoHomeBrand
@@ -48,18 +52,22 @@ func NewAutoHomeBrand(brand_name, brand_homepage, brand_capital string) *AutoHom
 	return &AutoHomeBrand{Name:brand_name,Url:brand_homepage,Cap:brand_capital}
 }
 
-func NewManufacture() *Manufacture {
-	return &Manufacture{}
+func NewManufacture(v ...interface{}) *Manufacture {
+	m := &Manufacture{}
+	if len(v) > 0 {
+		if name, ok := v[0].(string); ok {
+			m.Name = name
+		}
+	}
+	return m
 }
 
-func NewSeries(sid int, series_name, series_status, s_url string) *Series {
-	return &Series{AutoHomeSid:sid, Name:series_name, Status:series_status, Url:s_url}
+func NewSeries(sid int, series_name, series_status, home_url string) *Series {
+	return &Series{Sid:sid, Name:series_name, status:series_status, homeUrl:home_url}
 }
 
-func NewCar(aid int, car_name, config_url string) (*Car) {
-	c := &Car{Aid:aid, Name:car_name, Url:config_url}
-	c.Settings = "https://car.autohome.com.cn/config/spec/" + strconv.Itoa(c.Aid) + ".html"
-	return c
+func NewSeriesById(sid int) *Series {
+	return &Series{Sid:sid}
 }
 
 func (b *AutoHomeBrands) IsEmpty() bool {
@@ -73,6 +81,62 @@ func (b *AutoHomeBrands) Count() int {
 	return len(*b)
 }
 
+// brand funcs
+func (b *AutoHomeBrand) SetName(name string) (*AutoHomeBrand) {
+	b.Name = name
+	return b
+}
+
+func (b *AutoHomeBrand) SetUrl(url string) (*AutoHomeBrand) {
+	b.Url = url
+	return b
+}
+
+func (b *AutoHomeBrand) SetLogo(logo_url string) (*AutoHomeBrand) {
+	b.Img = logo_url
+	return b
+}
+
+func (b *AutoHomeBrand) SetTotalNums(nums int) (*AutoHomeBrand) {
+	b.nums = nums
+	return b
+}
+
+func (b *AutoHomeBrand) SetManufs(manufs map[string]*Manufacture) (*AutoHomeBrand) {
+	b.Manufactures = manufs
+	return b
+}
+
+func (b *AutoHomeBrand) GetName() (string) {
+	return b.Name
+}
+
+func (b *AutoHomeBrand) GetUrl() (string) {
+	return b.Url
+}
+
+func (b *AutoHomeBrand) GetTotalNums() (int) {
+	return b.nums
+}
+
+func (b *AutoHomeBrand) GetManufs() (map[string]*Manufacture) {
+	return b.Manufactures
+}
+
+func (b AutoHomeBrand) getSeries() (s []*Series) {
+	if len(b.GetManufs()) <= 0 {
+		return
+	}
+
+	for _, m := range b.GetManufs() {
+		for _, v := range m.Series {
+			s = append(s, v)
+		}
+	}
+	return
+}
+
+// manufacture funcs
 func (m *Manufacture) SetName(mName string) {
 	m.Name = mName
 }
@@ -85,62 +149,98 @@ func (m *Manufacture) SetSeries(ss map[string]*Series) {
 	m.Series = ss
 }
 
-func (s *Series) SetSettings(settings_url string) {
-	s.Settings = settings_url
+func (m *Manufacture) GetName() (string) {
+	return m.Name
 }
 
-func (s *Series) SetCars(cars map[string]*Car) {
-	s.Cars = cars
-}
-
-func (s *Series) SetName(sName string) {
-	s.Name = sName
-}
-
-func (s *Series) SetUrl(sUrl string) {
-	s.Url = sUrl
-}
-
-func (c *Car) SetPrice(price string) {
-	c.Price = price
-}
-
-func (b AutoHomeBrand) getSeries() ([]*Series) {
-	if len(b.Manufactures) <= 0 {
-
-	}
-
-	var s []*Series
-	for _, m := range b.Manufactures {
-		for _, v := range m.Series {
-			s = append(s, v)
-		}
-	}
+// series funcs
+func (s *Series) SetSettings(settings_url string) (*Series) {
+	s.configUrl = settings_url
 	return s
 }
 
+func (s *Series) SetCars(cars map[int]*CarCrawl) (*Series) {
+	s.CarCrawls = cars
+	return s
+}
+
+func (s *Series) SetName(sName string) (*Series) {
+	s.Name = sName
+	return s
+}
+
+func (s *Series) SetHomeUrl(sUrl string) (*Series) {
+	s.homeUrl = sUrl
+	return s
+}
+
+func (s *Series) SetStatus(status string) (*Series) {
+	s.status = status
+	return s
+}
+
+func (s *Series) SetBrand(b *AutoHomeBrand) (*Series) {
+	s.AutoHomeBrand = b
+	return s
+}
+
+func (s *Series) SetManufacture(m *Manufacture) (*Series) {
+	s.Manufacture = m
+	return s
+}
+
+func (s *Series) GetSid() (int) {
+	return s.Sid
+}
+
+func (s *Series) GetName() (string) {
+	return s.Name
+}
+
+func (s *Series) GetBrandName() (string) {
+	return s.AutoHomeBrand.GetName()
+}
+
+func (s *Series) GetManufactureName() (string) {
+	return s.Manufacture.GetName()
+}
+
+func (s *Series) GetHomeUrl() (string) {
+	return s.homeUrl
+}
+
+func (s *Series) GetConfigUrl() (string) {
+	return s.configUrl
+}
+
+func (s *Series) GetStatus() (string) {
+	return s.status
+}
+
 func (b AutoHomeBrand) String() string {
-	baseStr := "品牌: " + b.Name + "\n" +
-		"链接: " + b.Url + "\n" +
+	baseStr := "品牌: " + b.GetName() + "\n" +
+		"链接: " + b.GetUrl() + "\n" +
 		"图标: " + b.Img + "\n" +
 		"首字母: " + b.Cap + "\n" +
-		"车辆总数: " + strconv.Itoa(b.Nums) + "\n" +
-		"厂商: " + strconv.Itoa(len(b.Manufactures)) + "家\n"
+		"车辆总数: " + strconv.Itoa(b.GetTotalNums()) + "\n" +
+		"厂商: " + strconv.Itoa(len(b.GetManufs())) + "家\n"
 	buf := NewBuffer()
 	buf.Write([]byte(baseStr))
 	str := "[\n"
 	buf.Write([]byte(str))
-	for _, m := range b.Manufactures {
+	for _, m := range b.GetManufs() {
 		str = "	{厂商:" + m.Name + ", 链接:" + m.Url + ", 车系:[\n"
 		buf.Write([]byte(str))
 		for _, s := range m.Series {
-			str = "		{S:" + s.Name + ",SID:" + strconv.Itoa(s.AutoHomeSid) + ", 状态:" + s.Status + ", 链接:" + s.Url + ",\n"
-			str += "		参数:" + s.Settings + "},\n"
+			str = "		{S:" + s.GetName() + ",SID:" + strconv.Itoa(s.GetSid()) + ", 状态:" + s.GetStatus() + ", 链接:" + s.GetHomeUrl() + ",\n"
+			str += "		参数:" + s.GetConfigUrl() + "},\n"
 			buf.Write([]byte(str))
-			for _, c := range s.Cars {
-				str := "		AutoHomeId:" + strconv.Itoa(c.Aid) + ", Car Name:" + c.Name + ",\n"
+			for _, c := range s.CarCrawls {
+				str := "		AutoHomeId:" + strconv.Itoa(c.Type_id) + ", Car Name:" + c.Car_name + ",\n"
 				buf.Write([]byte(str))
-				str = "			Config:" + c.Settings + ",\n"
+				str = "			Sid:" + strconv.Itoa(c.Series_id) + ", 车系:" + c.Series_name + ",Bid:" + strconv.Itoa(c.Brand_id) + ", 品牌:" + c.Brand_name + ",\n"
+				buf.Write([]byte(str))
+				str = "			Config:" + c.settings + ",\n"
 				buf.Write([]byte(str))
 			}
 		}
@@ -149,10 +249,4 @@ func (b AutoHomeBrand) String() string {
 	}
 	buf.Write([]byte("]"))
 	return string(*buf)
-	/*return "品牌: " + b.Name + "\n" +
-	"链接: " + b.Url + "\n" +
-	"图标: " + b.Img + "\n" +
-	"首字母: " + b.Cap + "\n" +
-	"车辆总数: " + strconv.Itoa(b.Nums) + "\n" +
-	"厂商: " + strconv.Itoa(len(b.Manufactures)) + "家\n"*/
 }
