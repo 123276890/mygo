@@ -12,6 +12,7 @@ func Test_Regexp(t *testing.T) {
 	str := "三<span class='hs_kw6_configEQ'></span>10<span class='hs_kw1_configEQ'></span>公里"
 	reg := regexp.MustCompile(pat)
 	found := reg.Split(str, -1)
+	//wg.Wait()
 	t.Log(found)
 }
 

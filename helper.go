@@ -15,42 +15,50 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+	"net/url"
+	"net/http"
+	"io/ioutil"
+	"encoding/json"
 
 	"github.com/axgle/mahonia"
 )
 
 type logManager struct{
 	*log.Logger
+	m			*sync.Mutex
 	O			*os.File
 }
 
-func initLogManager(filename string) *logManager {
+func initLogManager() *logManager {
 	var once sync.Once
 	var l *logManager
 	once.Do(func() {
 		var err error
 		var logFileWriter *os.File
-		realpath, err := filepath.Abs(filepath.Dir(filename))
+		realpath, err := filepath.Abs(filepath.Dir(loggerFileName))
 		if err != nil {
 			log.Fatal("Failed:", realpath)
 			return
 		}
-		basename := filepath.Base(filename)
-		logfile := filepath.Join(realpath, basename)
-		fmt.Println("opening logfile:", logfile)
-		fmt.Println("tail -f ", logfile)
+		basename := filepath.Base(loggerFileName)
+		file_fullpath := filepath.Join(realpath, basename)
+		fmt.Println("opening file_fullpath:", file_fullpath)
+		fmt.Println("tail -f ", file_fullpath)
 
-		if checkFileExist(logfile) == true {
-			logFileWriter, err = os.OpenFile(logfile, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+		if checkFileExist(file_fullpath) == true {
+			logFileWriter, err = os.OpenFile(file_fullpath, os.O_APPEND|os.O_RDWR, os.ModeAppend)
 		} else {
-			logFileWriter, err = os.Create(logfile)
+			logFileWriter, err = os.Create(file_fullpath)
 		}
 
 		if err != nil {
 			log.Fatalln("Failed:", err)
 			return
 		}
-		l = &logManager{log.New(logFileWriter, "", log.LstdFlags),logFileWriter}
+		l = &logManager{}
+		l.Logger = log.New(logFileWriter, "", log.LstdFlags)
+		l.m = new(sync.Mutex)
+		l.O = logFileWriter
 		l.Println("\n")
 		l.Record("Program Start...")
 	})
@@ -58,8 +66,49 @@ func initLogManager(filename string) *logManager {
 }
 
 func (l *logManager) Record(v ...interface{}) {
+	l.m.Lock()
+	defer l.m.Unlock()
+
 	fmt.Println(v...)
 	l.Logger.Println(v...)
+}
+
+func monitorLogFileSize() {
+	for {
+		file_info, err := logger.O.Stat()	//os.Stat(log_file)
+		if err != nil {
+			break
+		}
+		filesize := file_info.Size()
+		if filesize > MAX_LOG_FILE_SIZE {
+			wg.Add(1)
+			logger_file_name := logger.O.Name()
+			contents, err := ioutil.ReadFile(logger_file_name)
+			if err != nil {
+				logger.Record(err)
+				continue
+			}
+
+			logger.m.Lock()
+
+			backup_filename := strconv.Itoa(time.Now().Year()) + strconv.Itoa(int(time.Now().Month())) + strconv.Itoa(time.Now().Day()) + "_backup.log"
+			backup_file, err := os.OpenFile(backup_filename, os.O_WRONLY | os.O_CREATE, os.ModePerm)
+			if err != nil {
+				goto errHandler
+			}
+
+			_, err = backup_file.Write(contents)
+			if err != nil {
+				goto errHandler
+			}
+			logger.O.Truncate(0)
+
+		errHandler:
+			logger.m.Unlock()
+			backup_file.Close()
+			wg.Done()
+		}
+	}
 }
 
 func ChineseToUtf(src string, srcCode string) string {
@@ -242,4 +291,96 @@ func reNameSameFileName(filename string, path string) (string){
 	} else {
 		return f
 	}
+}
+
+func xget(urlstr string) (*http.Response, error){
+	var (
+		err error
+	)
+	method := "GET"
+	u, err := url.Parse(urlstr)
+	if err != nil {
+		logger.Record(err)
+		return nil, err
+	}
+	host := u.Host
+	filename := host + ".cookie"
+	f, err := os.OpenFile(filename, os.O_RDWR | os.O_CREATE, os.ModePerm)
+	if err != nil {
+		logger.Record(err)
+		return nil, err
+	}
+
+	req, err := http.NewRequest(method, urlstr, nil)
+	if err != nil {
+		logger.Record(err)
+		return nil, err
+	}
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36")
+	cookies_bytes, err := ioutil.ReadAll(f)
+	if err != nil {
+		if err != io.EOF {
+			logger.Record(err)
+			return nil, err
+		}
+	}
+
+	cookies := loadCookies(cookies_bytes)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+
+	clnt := http.Client{}
+
+	resp, err := clnt.Do(req)
+	if err != nil {
+		logger.Record(err)
+		return nil, err
+	}
+
+	cookies_resp := resp.Cookies()
+	for _, c := range cookies_resp {
+		exist := false
+		for _, v := range cookies {
+			if c.Raw == v.Raw {
+				exist = true
+			}
+		}
+
+		if exist {
+			continue
+		}
+
+		str, err := json.Marshal(c)
+		if err != nil {
+			log.Fatal(err)
+			continue
+		}
+		str = append(str,'\n')
+		io.WriteString(f, string(str))
+	}
+	return resp, nil
+}
+
+func loadCookies(cookies_bytes []byte) ([]*http.Cookie) {
+	var cookies []*http.Cookie
+	datas := bytes.Split(cookies_bytes, []byte("\n"))
+	for _, data := range datas {
+		if len(data) <= 0 {
+			continue
+		}
+		r := bytes.NewReader(data)
+		dc := json.NewDecoder(r)
+		var cookie http.Cookie
+		err := dc.Decode(&cookie)
+		if err != nil {
+			log.Fatal(err)
+			continue
+		}
+		cookies = append(cookies, &cookie)
+	}
+	return cookies
 }

@@ -17,13 +17,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/astaxie/beego/orm"
 	"github.com/tidwall/gjson"
-	"github.com/robertkrimen/otto"
-)
-
-var (
-	brands = make(AutoHomeBrands)
-	logger = initLogManager("./log.txt")
-	vm = otto.New()
 )
 
 func JobUpdateBrandLogo(brand_names []string) {
@@ -171,8 +164,7 @@ func updateAutohomeBrandLogo(brand *AutoHomeBrand) {
 	var (
 		schemes		string
 	)
-	resp, err := http.Get(brand.GetUrl())
-	defer resp.Body.Close()
+	resp, err := xget(brand.GetUrl())
 	if err != nil {
 		logger.Record("Error: goqueryGet http.Get:", err)
 		return
@@ -181,6 +173,7 @@ func updateAutohomeBrandLogo(brand *AutoHomeBrand) {
 	if resp.StatusCode != 200 {
 		return
 	}
+	defer resp.Body.Close()
 
 	u, err := url.Parse(brand.GetUrl())
 	if err != nil {
@@ -279,8 +272,7 @@ func fetchCarInfo(surl string) (ret map[int]*CarCrawl, err error) {
 	)
 	ret = make(map[int]*CarCrawl)
 
-	resp, err := http.Get(surl)
-	defer resp.Body.Close()
+	resp, err := xget(surl)
 	if err != nil {
 		logger.Record("Error: goqueryGet http.Get:", err)
 		return
@@ -290,6 +282,7 @@ func fetchCarInfo(surl string) (ret map[int]*CarCrawl, err error) {
 		err = errors.New("Network Error!")
 		return
 	}
+	defer resp.Body.Close()
 
 	if content_type, ok := resp.Header["Content-Type"]; ok {
 		pair := strings.SplitN(content_type[0], "=", 2)
@@ -1733,8 +1726,7 @@ func fetchSeriesInfo(series *Series) (map[string]interface{}, bool) {
 	found := false
 	ret := make(map[string]interface{})
 
-	resp, err := http.Get(series.GetHomeUrl())
-	defer resp.Body.Close()
+	resp, err := xget(series.GetHomeUrl())
 	if err != nil {
 		logger.Record("Error: goqueryGet http.Get:", err)
 		return nil, false
@@ -1743,6 +1735,7 @@ func fetchSeriesInfo(series *Series) (map[string]interface{}, bool) {
 	if resp.StatusCode != 200 {
 		return nil, false
 	}
+	defer resp.Body.Close()
 
 	if content_type, ok := resp.Header["Content-Type"]; ok {
 		pair := strings.SplitN(content_type[0], "=", 2)
@@ -1838,8 +1831,7 @@ func getAutoHomeBrand(brand *AutoHomeBrand) {
 	var schemes string
 	var host string
 
-	resp, err := http.Get(brand.GetUrl())
-	defer resp.Body.Close()
+	resp, err := xget(brand.GetUrl())
 	if err != nil {
 		logger.Record("Error: goqueryGet http.Get:", err)
 		return
@@ -1848,6 +1840,8 @@ func getAutoHomeBrand(brand *AutoHomeBrand) {
 	if resp.StatusCode != 200 {
 		return
 	}
+
+	defer resp.Body.Close()
 
 	if content_type, ok := resp.Header["Content-Type"]; ok {
 		pair := strings.SplitN(content_type[0], "=", 2)
@@ -1978,8 +1972,7 @@ func getAutoHomeBrands(sUrl string) {
 	var schemes string
 	var host string
 
-	resp, err := http.Get(sUrl)
-	defer resp.Body.Close()
+	resp, err := xget(sUrl)
 	if err != nil {
 		logger.Record("Error: goqueryGet http.Get:", err)
 		return
@@ -1988,6 +1981,7 @@ func getAutoHomeBrands(sUrl string) {
 	if resp.StatusCode != 200 {
 		return
 	}
+	defer resp.Body.Close()
 
 	if content_type, ok := resp.Header["Content-Type"]; ok {
 		pair := strings.SplitN(content_type[0], "=", 2)
@@ -2037,6 +2031,12 @@ func getAutoHomeBrands(sUrl string) {
 						brand_name = pair[0]
 
 						brand_name = strings.TrimSpace(ChineseToUtf(brand_name, charset))
+						if strings.Contains(brand_name, "阿斯顿") && strings.Contains(brand_name, "马丁") {
+							brand_name = "阿斯顿・马丁"
+						}
+						if strings.Contains(brand_name, "阿尔法") && strings.Contains(brand_name, "罗密欧") {
+							brand_name = "阿尔法・罗密欧"
+						}
 						brands[brand_name] = NewAutoHomeBrand(brand_name, link, capital)
 
 						em := pair[1]

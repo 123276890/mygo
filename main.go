@@ -13,9 +13,15 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"sync"
 
 	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/robertkrimen/otto"
+)
+
+const (
+	MAX_LOG_FILE_SIZE = 1 << 20 * 50
 )
 
 var (
@@ -25,6 +31,11 @@ var (
 	config = loadSettings()
 	PinyinMap = loadPinyinMap()
 	SHOPNC_ROOT = config["crawler"]["shopnc_root"]
+	loggerFileName = "./gocrawler.log"
+	logger = initLogManager()
+	wg sync.WaitGroup
+	brands = make(AutoHomeBrands)
+	vm = otto.New()
 
 	rootCtx  context.Context
 	cancel   context.CancelFunc
@@ -71,6 +82,7 @@ func init() {
 	orm.RegisterModelWithPrefix(prefix, new(Brand), new(CarSeries), new(CarCrawl)) //TODO 注册model与数据表关联
 	orm.Debug = true
 	orm.DebugLog = orm.NewLog(logger.O)
+	go monitorLogFileSize()
 }
 
 func main() {
