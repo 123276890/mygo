@@ -108,6 +108,7 @@ func monitorLogFileSize() {
 			backup_file.Close()
 			wg.Done()
 		}
+		time.Sleep(time.Second * 10)
 	}
 }
 
