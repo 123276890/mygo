@@ -156,7 +156,7 @@ func Test_FetchSeriesInfo(t *testing.T) {
 	t.Log(len(info))
 }*/
 
-func Test_FetchCarInfo2(t *testing.T) {
+func Test_FetchCarInfo(t *testing.T) {
 	var surl string
 	surl = "https://car.autohome.com.cn/config/series/528.html"
 	info, err := fetchCarInfo(surl)
