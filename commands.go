@@ -25,7 +25,7 @@ func consoleReceiveCommand() {
 		command = strings.ToLower(command)
 		//fmt.Println("command:",command)
 		switch command {
-		case "get brands":
+		case "get all":
 			JobGetAutoHomeBrands()
 		case "exit":
 			pid := getPidFromFile()
@@ -42,14 +42,7 @@ func consoleReceiveCommand() {
 }
 
 func showHelp() {
-	help := "Usage:" + "\n" +
-		"get brands: " + "\n" +
-		"			抓取汽车之家品牌数据" + "\n" +
-		"help: \n" +
-		"			查看帮助" + "\n" +
-		"exit: \n" +
-		"			退出" + "\n"
-	fmt.Println(help)
+	fmt.Println(HELP_TEXT)
 }
 
 func startWorkers(ctx context.Context) {

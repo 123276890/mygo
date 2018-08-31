@@ -11,7 +11,6 @@ import (
 	"bufio"
 	"io"
 	"errors"
-	//crand "crypto/rand"
 	"math/rand"
 	"strconv"
 	"time"
@@ -21,6 +20,18 @@ import (
 	"encoding/json"
 
 	"github.com/axgle/mahonia"
+)
+
+const (
+	HELP_TEXT = `
+Usage:
+get all: 
+		抓取汽车之家所有品牌数据
+help:
+		查看帮助
+exit: 
+		退出
+`
 )
 
 type logManager struct{
@@ -317,9 +328,6 @@ func xget(urlstr string) (*http.Response, error){
 		logger.Record(err)
 		return nil, err
 	}
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36")
 	cookies_bytes, err := ioutil.ReadAll(f)
 	if err != nil {

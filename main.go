@@ -155,19 +155,18 @@ func signalHandle() {
 	for {
 		sig := <-ch
 
+		log.Println("received signal", sig)
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
 			// graceful stop
-			log.Println("received signal Exit")
-			signal.Stop(ch)
 			fd.Close()
 			//cancel() // end mainProgress
 			exitUnlockPid()
 			log.Println("bye bye")
+			signal.Stop(ch)
 			return
 		case syscall.SIGHUP, syscall.SIGUSR2:
 			// graceful startProgress
-			log.Println("received signal restart")
 			//cancel() // end mainProgress
 
 			log.Println("all workers canceled")

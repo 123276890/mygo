@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -75,7 +74,6 @@ func JobGetAutoHomeBrands() {
 	getAutoHomeBrands(brand_index_url)
 
 	if !brands.IsEmpty() {
-		fmt.Println(brands.Count())
 		for _, brand := range brands {
 			if strings.Contains(excepts, brand.GetName()) {
 				continue
@@ -131,6 +129,9 @@ func JobGetAutoHomeBrands() {
 				}
 				//更新车系主页 和 车系参数主页
 				if series_query.Series_home == "" || series_query.Series_config == "" {
+					/*if series_query.Series_id == 370 {
+						fmt.Println(s.GetStatus())
+					}*/
 					series_query.Series_home = s.GetHomeUrl()
 					series_query.Series_config = s.GetConfigUrl()
 					series_query.Status = s.GetStatus()
@@ -266,7 +267,6 @@ func downloadBrandLogo(b *AutoHomeBrand) (string, error) {
 
 func fetchCarInfo(surl string) (ret map[int]*CarCrawl, err error) {
 	var (
-		//info = make(map[string]map[string]string)
 		charset string
 		dict = make(map[string]map[int]string)
 	)
@@ -334,7 +334,6 @@ func fetchCarInfo(surl string) (ret map[int]*CarCrawl, err error) {
 		return
 	}
 	str_base = str_base[13:pos_end - 1]
-	//fmt.Println(str_base)
 
 	// 选项配置参数组
 	pos_start = strings.Index(html, "var option =")
@@ -349,7 +348,6 @@ func fetchCarInfo(surl string) (ret map[int]*CarCrawl, err error) {
 		return
 	}
 	str_option = str_option[13:pos_end - 1]
-	//fmt.Println(str_option)
 
 	// 外观颜色json
 	pos_start = strings.Index(html, "var color =")
@@ -364,7 +362,6 @@ func fetchCarInfo(surl string) (ret map[int]*CarCrawl, err error) {
 		return
 	}
 	str_color = str_color[12:pos_end - 1]
-	//fmt.Println(str_color)
 
 	// 内饰颜色json
 	pos_start = strings.Index(html, "var innerColor =")
@@ -379,7 +376,6 @@ func fetchCarInfo(surl string) (ret map[int]*CarCrawl, err error) {
 		return
 	}
 	str_inner = str_inner[16:pos_end - 1]
-	//fmt.Println(str_inner)
 
 	//车型id抓取
 	result := gjson.Get(str_base,"result.speclist")
@@ -1778,7 +1774,7 @@ func fetchSeriesInfo(series *Series) (map[string]interface{}, bool) {
 			ret["url"] = link
 			car_crawls, err = fetchCarInfo(link)
 			if err != nil {
-				//log
+				logger.Record("Error when fetch car info:",err)
 			}
 			found = true
 		}
@@ -1812,6 +1808,12 @@ func fetchSeriesInfo(series *Series) (map[string]interface{}, bool) {
 					price = ChineseToUtf(price, charset)
 				}
 				car_crawl.SetPriceStr(price)
+			}
+
+			if series.status == "进口" {
+				car_crawl.Produce_type_str = "进口"
+			} else {
+				car_crawl.Produce_type_str = "国产"
 			}
 		}
 	})
@@ -1919,6 +1921,10 @@ func getAutoHomeBrand(brand *AutoHomeBrand) {
 						}
 					}
 
+					if strings.Contains(s_name, "进口") {
+						s_status = "进口"
+					}
+
 					//抓取车系ID
 					pos_series := strings.Index(series_link, "series-")
 					pos_dot := strings.Index(series_link,".")
@@ -1930,6 +1936,7 @@ func getAutoHomeBrand(brand *AutoHomeBrand) {
 					sid, err := strconv.Atoi(sid_text)
 					if err != nil {
 						logger.Record("Error when get Series ID:", s_name, err)
+						return
 					}
 
 					if !strings.HasPrefix(series_link, schemes+"://"+host) {
@@ -2115,9 +2122,6 @@ func decodeJsVarfuncs(str string) (key, value string) {
 }
 
 func replaceDashAsNullString(s string) string {
-	/*if s == "-" {
-		return ""
-	}*/
 	if strings.Contains(s, "&nbsp;") {
 		s = strings.Replace(s, "&nbsp;"," ", -1)
 	}
@@ -2169,14 +2173,6 @@ func getAutoHomeDict(js string) (dict_slice map[int]string){
 			map_strs[key] = value
 		}
 	}
-	/*
-	for k, v := range map_strs {
-		fmt.Println(k,"=",v)
-	}
-	for k, v := range map_source {
-		fmt.Println(k,"=",v)
-	}
-	*/
 	//拼接字典
 	pattern = `function\s*\$FillDicData\$\s*\(\)\s*?{.*?\$RenderToHTML`
 	if is_match, _ := regexp.MatchString(pattern, js); is_match {
@@ -2243,7 +2239,6 @@ func getAutoHomeDict(js string) (dict_slice map[int]string){
 				key := str_to_match
 				dict += map_strs[key]
 			} else if is_match, _ := regexp.MatchString(`\('([A-Z]|[a-z]|[0-9]|[,]|[']|[;]|[\u4e00-\u9fbb]){1,10}'\)`,str_to_match); is_match {
-				fmt.Println("matched A-Z")
 				re_tmp := regexp.MustCompile(`\('([A-Z]|[a-z]|[0-9]|[,]|[']|[;]|[\u4e00-\u9fbb]){1,10}'\)`)
 				tmp := re_tmp.FindString(str_to_match)
 				if len([]rune(tmp)) >= 2 {
@@ -2254,15 +2249,13 @@ func getAutoHomeDict(js string) (dict_slice map[int]string){
 				dict += "X"
 			}
 		}
-		//fmt.Println(dict)
 		//拼接坐标
 		indexes := ""
 		position = strings.Index(str_match, "$rulePosList$")
 		str_tmp = str_match[position:]
 
 		position = strings.Index(str_tmp, "$SystemFunction2$")
-		str_tmp = str_tmp[:position - 2] // 去掉 ),$SystemFunction2$
-		//str_tmp = strings.Replace(str_tmp, str_match, "", -1)
+		str_tmp = str_tmp[:position - 2]
 		str_tmp = strings.TrimSpace(str_tmp)
 		strs_indexes := strings.Split(str_tmp,"+")
 		for i := 1; i < len(strs_indexes); i++ {
@@ -2313,7 +2306,6 @@ func getAutoHomeDict(js string) (dict_slice map[int]string){
 			} else {
 				indexes += "X"
 			}
-			//fmt.Println(str_to_match,"=",tmp)
 		}
 
 		runes_dict := []rune(dict)
@@ -2327,7 +2319,7 @@ func getAutoHomeDict(js string) (dict_slice map[int]string){
 			for _, num := range nums {
 				index, err := strconv.Atoi(num)
 				if err != nil {
-					fmt.Println("convert",num,"to int failed!",err)
+					logger.Record("convert",num,"to int failed!",err)
 					continue
 				}
 
@@ -2336,10 +2328,8 @@ func getAutoHomeDict(js string) (dict_slice map[int]string){
 					sbresult += s
 				}
 			}
-			//fmt.Println(i,"=",sbresult)
 			dict_slice[i] = sbresult
 		}
-		//fmt.Println(indexes)
 	}
 	return
 }
@@ -2392,6 +2382,9 @@ func dealAutoHomeItemValue(item gjson.Result, info map[int]*CarCrawl, key string
 	if key == "Car_type" {
 		value = "1"
 	}
+	if key == "Engine_type" {
+		value = car.Engine
+	}
 	if value != "" {
 		value = replaceHtmlByDict(value, dict)
 	}
@@ -2408,7 +2401,7 @@ func dealAutoHomeItemValue(item gjson.Result, info map[int]*CarCrawl, key string
 
 	field := v.FieldByName(key)
 	if !field.CanSet() {
-		fmt.Println(key,"can not be set value!")
+		logger.Record(key,"can not be set value!")
 		return
 	}
 
